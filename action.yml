@@ -1,0 +1,162 @@
+name: updatethis
+description: Set the Version field of an R package DESCRIPTION from a git tag
+
+inputs:
+  version:
+    description: >-
+      The version to set. Defaults to the tag that triggered the workflow,
+      with any leading `v` stripped.
+    required: false
+    default: ""
+  path:
+    description: Path to the package root containing the DESCRIPTION file
+    required: false
+    default: "."
+  force:
+    description: Set the version even if it is not greater than the current one
+    required: false
+    default: "false"
+  updatethis-version:
+    description: Version of updatethis to install, or `latest`
+    required: false
+    default: "latest"
+  commit:
+    description: Commit the updated DESCRIPTION
+    required: false
+    default: "true"
+  commit-message:
+    description: >-
+      Message for the commit. `{{version}}` is replaced with the new version.
+    required: false
+    default: "chore: set version to {{version}}"
+  branch:
+    description: >-
+      Branch to commit to and push. Defaults to the repository's default
+      branch, since tag-triggered workflows check out a detached HEAD.
+    required: false
+    default: ""
+  push:
+    description: Push the commit
+    required: false
+    default: "true"
+  commit-user-name:
+    description: Author name for the commit
+    required: false
+    default: "github-actions[bot]"
+  commit-user-email:
+    description: Author email for the commit
+    required: false
+    default: "41898282+github-actions[bot]@users.noreply.github.com"
+
+outputs:
+  version:
+    description: The version written to DESCRIPTION
+    value: ${{ steps.set-version.outputs.version }}
+  previous-version:
+    description: The version that was in DESCRIPTION beforehand
+    value: ${{ steps.set-version.outputs.previous-version }}
+  committed:
+    description: Whether a commit was made
+    value: ${{ steps.commit.outputs.committed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install updatethis
+      shell: bash
+      env:
+        UPDATETHIS_VERSION: ${{ inputs.updatethis-version }}
+      run: |
+        set -euo pipefail
+
+        if [[ "$UPDATETHIS_VERSION" == "latest" ]]; then
+            url="https://github.com/JosiahParry/updatethis/releases/latest/download/updatethis-installer.sh"
+        else
+            url="https://github.com/JosiahParry/updatethis/releases/download/${UPDATETHIS_VERSION}/updatethis-installer.sh"
+        fi
+
+        curl --proto '=https' --tlsv1.2 -LsSf "$url" | sh
+
+        # the installer places binaries in CARGO_HOME
+        echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> "$GITHUB_PATH"
+
+    - name: Set version
+      id: set-version
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FORCE: ${{ inputs.force }}
+        GITHUB_REF_NAME: ${{ github.ref_name }}
+      run: |
+        set -euo pipefail
+
+        version="$INPUT_VERSION"
+
+        if [[ -z "$version" ]]; then
+            if [[ "${{ github.ref_type }}" != "tag" ]]; then
+                echo "::error::No version input given and the workflow was not triggered by a tag" >&2
+                exit 1
+            fi
+            version="$GITHUB_REF_NAME"
+        fi
+
+        version="${version#v}"
+
+        if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::\`$version\` is not a valid R package version (x.y.z or x.y.z.w)" >&2
+            exit 1
+        fi
+
+        previous=$(updatethis current "$INPUT_PATH" || true)
+        echo "previous-version=$previous" >> "$GITHUB_OUTPUT"
+
+        args=(set-version "$version" "$INPUT_PATH")
+        if [[ "$INPUT_FORCE" == "true" ]]; then
+            args+=(--force)
+        fi
+
+        updatethis "${args[@]}"
+
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Commit
+      id: commit
+      if: ${{ inputs.commit == 'true' }}
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_PUSH: ${{ inputs.push }}
+        INPUT_MESSAGE: ${{ inputs.commit-message }}
+        INPUT_USER_NAME: ${{ inputs.commit-user-name }}
+        INPUT_USER_EMAIL: ${{ inputs.commit-user-email }}
+        VERSION: ${{ steps.set-version.outputs.version }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      run: |
+        set -euo pipefail
+
+        description="$INPUT_PATH/DESCRIPTION"
+
+        if git diff --quiet -- "$description"; then
+            echo "DESCRIPTION is unchanged; nothing to commit"
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+        fi
+
+        git config user.name "$INPUT_USER_NAME"
+        git config user.email "$INPUT_USER_EMAIL"
+
+        message="${INPUT_MESSAGE//\{\{version\}\}/$VERSION}"
+
+        git add -- "$description"
+        git commit -m "$message"
+
+        echo "committed=true" >> "$GITHUB_OUTPUT"
+
+        if [[ "$INPUT_PUSH" == "true" ]]; then
+            # tag-triggered runs check out a detached HEAD, so the target
+            # branch has to be named explicitly
+            branch="${INPUT_BRANCH:-$DEFAULT_BRANCH}"
+            git push origin "HEAD:refs/heads/$branch"
+        fi
