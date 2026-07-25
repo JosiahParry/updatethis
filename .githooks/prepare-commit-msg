@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Validate and enhance the commit message with git-sv.
+#
+# Enable with:
+#     git config core.hooksPath .githooks
+
+if ! git sv --help >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+git-sv not found.
+
+Install it from https://github.com/thegeeklab/git-sv, or skip this hook with:
+
+    git commit --no-verify
+EOF
+    exit 1
+fi
+
+git sv validate-commit-message --path "$(git rev-parse --show-toplevel)" --file "$1" --source "$2"

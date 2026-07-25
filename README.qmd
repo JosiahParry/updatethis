@@ -1,0 +1,26 @@
+---
+title: updatethis
+output: gfm
+---
+
+A tiny CLI to programmatically update the version of an R package.
+
+
+## Usage
+
+```{r}
+#| echo: false
+#| comment: ""
+cat(system("updatethis --help", intern = TRUE), sep = "\n")
+```
+
+### Increment the package version
+
+```{r}
+#| echo: false
+#| comment: ""
+cat(system("updatethis version --help", intern = TRUE), sep = "\n")
+```
+
+
+Made with 🤍 from the `ricochet` 🐇 team
