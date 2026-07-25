@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
+mod version;
 
 #[derive(Parser)]
 #[command(
