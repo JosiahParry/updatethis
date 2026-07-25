@@ -2,6 +2,14 @@
 name = "updatethis"
 version = "0.1.0"
 edition = "2024"
+description = "A tiny CLI to programmatically update the version of an R package"
+repository = "https://github.com/JosiahParry/updatethis"
+license = "MIT"
+publish = false
+
+# `publish = false` otherwise hides this binary from cargo-dist.
+[package.metadata.dist]
+dist = true
 
 [dependencies]
 anyhow = "1"
@@ -12,3 +20,6 @@ r-description = { git = "https://github.com/JosiahParry/r-description-rs", branc
 [profile.release]
 codegen-units = 1
 lto = true
+
+[profile.dist]
+inherits = "release"
