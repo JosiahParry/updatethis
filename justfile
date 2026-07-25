@@ -17,6 +17,7 @@ bump:
     fi
     just readme
     cargo release version $version --execute
-    git add Cargo.toml README.md
+    git add Cargo.toml Cargo.lock README.md
+    git push
     git sv tag
-    git push && git push --tags
+    git push --tags
