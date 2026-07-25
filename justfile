@@ -14,6 +14,7 @@ bump:
         echo "No new version (git sv nv returned nothing)"
         exit 1
     fi
+    just readme
     cargo release version $version --execute
     git add Cargo.toml
     git sv tag

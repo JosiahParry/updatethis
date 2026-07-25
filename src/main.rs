@@ -1,13 +1,15 @@
 use anyhow::{Context, bail};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use colored::Colorize;
 use r_description::lossless::RDescription;
 use std::{
-    fmt,
     path::{Path, PathBuf},
     str::FromStr,
 };
+
 mod version;
+
+use version::{Version, VersionType};
 
 #[derive(Parser)]
 #[command(
@@ -35,122 +37,17 @@ enum Command {
         /// Path to the package root (defaults to the current directory)
         path: Option<PathBuf>,
     },
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-enum VersionType {
-    Major,
-    Minor,
-    Patch,
-    Dev,
-}
-
-/// An R package version: `major.minor.patch` with an optional dev component.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct Version {
-    major: u64,
-    minor: u64,
-    patch: u64,
-    dev: Option<u64>,
-}
-
-const DEFAULT_VERSION: Version = Version {
-    major: 0,
-    minor: 1,
-    patch: 0,
-    dev: None,
-};
-
-/// The dev component R packages start at, by convention.
-const FIRST_DEV: u64 = 9000;
-
-impl Version {
-    #[cfg(test)]
-    fn new(major: u64, minor: u64, patch: u64) -> Self {
-        Self {
-            major,
-            minor,
-            patch,
-            dev: None,
-        }
-    }
-}
-
-impl FromStr for Version {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts = s.trim().split(['.', '-']);
-
-        let mut next = |field: &str| -> anyhow::Result<u64> {
-            let Some(part) = parts.next() else {
-                bail!("version `{s}` is missing a {field} component");
-            };
-
-            part.parse()
-                .with_context(|| format!("`{part}` is not a valid {field} version"))
-        };
-
-        let major = next("major")?;
-        let minor = next("minor")?;
-        let patch = next("patch")?;
-
-        let dev = match parts.next() {
-            None => None,
-            Some(part) => Some(
-                part.parse()
-                    .with_context(|| format!("`{part}` is not a valid dev version"))?,
-            ),
-        };
-
-        if parts.next().is_some() {
-            bail!("version `{s}` has too many components");
-        }
-
-        Ok(Self {
-            major,
-            minor,
-            patch,
-            dev,
-        })
-    }
-}
-
-impl fmt::Display for Version {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
-
-        if let Some(dev) = self.dev {
-            write!(f, ".{dev}")?;
-        }
-
-        Ok(())
-    }
-}
-
-impl VersionType {
-    fn increment(&self, version: &mut Version) {
-        match self {
-            VersionType::Major => {
-                version.major += 1;
-                version.minor = 0;
-                version.patch = 0;
-                version.dev = None;
-            }
-            VersionType::Minor => {
-                version.minor += 1;
-                version.patch = 0;
-                version.dev = None;
-            }
-            VersionType::Patch => {
-                version.patch += 1;
-                version.dev = None;
-            }
-            VersionType::Dev => {
-                version.dev = Some(version.dev.map_or(FIRST_DEV, |dev| dev + 1));
-            }
-        }
-    }
+    /// Set the Version field to a specific version
+    #[command(alias = "sv")]
+    SetVersion {
+        /// The version to set, as `x.y.z` or `x.y.z.w`
+        version: Version,
+        /// Path to the package root (defaults to the current directory)
+        path: Option<PathBuf>,
+        /// Set the version even if it is not greater than the current one
+        #[arg(short, long)]
+        force: bool,
+    },
 }
 
 /// An R package DESCRIPTION file.
@@ -225,7 +122,7 @@ impl Description {
     /// Increment the `Version` field, defaulting it if absent.
     fn increment_version(&mut self, bump_type: VersionType) -> anyhow::Result<Version> {
         let new_version = match self.version()? {
-            None => DEFAULT_VERSION,
+            None => Version::DEFAULT,
             Some(mut v) => {
                 bump_type.increment(&mut v);
                 v
@@ -235,6 +132,25 @@ impl Description {
         self.inner.set_version(&new_version.to_string());
 
         Ok(new_version)
+    }
+
+    /// Set the `Version` field to `new_version`.
+    ///
+    /// Unless `force` is set, the new version must be greater than the
+    /// current one.
+    fn set_version(&mut self, new_version: Version, force: bool) -> anyhow::Result<()> {
+        if let (Some(current), false) = (self.version()?, force) {
+            if new_version <= current {
+                bail!(
+                    "{new_version} is not greater than the current version {current}; \
+                     pass --force to set it anyway"
+                );
+            }
+        }
+
+        self.inner.set_version(&new_version.to_string());
+
+        Ok(())
     }
 }
 
@@ -280,6 +196,37 @@ fn main() -> anyhow::Result<()> {
 
             println!("{}", version.to_string().green().bold());
         }
+        Command::SetVersion {
+            version,
+            path,
+            force,
+        } => {
+            let root = path.unwrap_or_else(|| PathBuf::from("."));
+
+            let mut description = Description::read(&root)?;
+
+            let old_version = description.version()?;
+            description.set_version(version, force)?;
+
+            let path = description.write()?;
+
+            let old = old_version
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "none".to_string());
+
+            println!(
+                "{} {} {} {}",
+                "set version from".bold(),
+                old.red(),
+                "->".dimmed(),
+                version.to_string().green().bold()
+            );
+            println!(
+                "{} {}",
+                "Wrote".dimmed(),
+                path.display().to_string().dimmed()
+            );
+        }
     }
 
     Ok(())
@@ -315,9 +262,9 @@ mod tests {
             description
                 .increment_version(VersionType::Patch)
                 .expect("bumps"),
-            DEFAULT_VERSION
+            Version::DEFAULT
         );
-        assert_eq!(description.version().expect("valid"), Some(DEFAULT_VERSION));
+        assert_eq!(description.version().expect("valid"), Some(Version::DEFAULT));
     }
 
     #[test]
@@ -369,48 +316,63 @@ mod tests {
     }
 
     #[test]
-    fn dev_increments_existing_dev_component() {
-        let mut version: Version = "1.0.0.9000".parse().expect("valid");
+    fn sets_a_greater_version() {
+        let mut description = fixture();
 
-        VersionType::Dev.increment(&mut version);
+        description
+            .set_version(Version::new(2, 0, 0), false)
+            .expect("2.0.0 is greater than 1.0.0");
 
-        assert_eq!(version.to_string(), "1.0.0.9001");
-    }
-
-    #[test]
-    fn bumping_a_dev_version_drops_the_dev_component() {
-        let mut version: Version = "1.0.0.9000".parse().expect("valid");
-
-        VersionType::Patch.increment(&mut version);
-
-        assert_eq!(version, Version::new(1, 0, 1));
-    }
-
-    #[test]
-    fn parses_and_displays_round_trip() {
-        for raw in ["1.0.0", "1.0.0.9000", "0.1.0", "10.20.30.9999"] {
-            let version: Version = raw.parse().expect("valid");
-            assert_eq!(version.to_string(), raw);
-        }
-    }
-
-    #[test]
-    fn parses_dash_separated_dev_component() {
         assert_eq!(
-            "1.0.0-9000".parse::<Version>().expect("valid"),
-            Version {
-                major: 1,
-                minor: 0,
-                patch: 0,
-                dev: Some(9000)
-            }
+            description.version().expect("valid"),
+            Some(Version::new(2, 0, 0))
         );
     }
 
     #[test]
-    fn rejects_malformed_versions() {
-        for raw in ["1.0", "1.0.0.9000.1", "1.0.x", "", "not-a-version"] {
-            assert!(raw.parse::<Version>().is_err(), "`{raw}` should not parse");
+    fn rejects_a_lesser_or_equal_version() {
+        for target in ["1.0.0", "0.9.9"] {
+            let mut description = fixture();
+            let target: Version = target.parse().expect("valid");
+
+            assert!(
+                description.set_version(target, false).is_err(),
+                "{target} should be rejected"
+            );
+
+            // the rejected write leaves the current version untouched
+            assert_eq!(
+                description.version().expect("valid"),
+                Some(Version::new(1, 0, 0))
+            );
         }
+    }
+
+    #[test]
+    fn force_overrides_the_ordering_check() {
+        let mut description = fixture();
+
+        description
+            .set_version(Version::new(0, 1, 0), true)
+            .expect("force ignores the check");
+
+        assert_eq!(
+            description.version().expect("valid"),
+            Some(Version::new(0, 1, 0))
+        );
+    }
+
+    #[test]
+    fn sets_a_version_when_none_is_present() {
+        let mut description: Description = "Package: nover\n".parse().expect("parses");
+
+        description
+            .set_version(Version::new(1, 0, 0), false)
+            .expect("nothing to compare against");
+
+        assert_eq!(
+            description.version().expect("valid"),
+            Some(Version::new(1, 0, 0))
+        );
     }
 }
