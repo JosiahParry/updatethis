@@ -1,6 +1,6 @@
 [package]
 name = "updatethis"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2024"
 description = "A tiny CLI to programmatically update the version of an R package"
 repository = "https://github.com/JosiahParry/updatethis"
