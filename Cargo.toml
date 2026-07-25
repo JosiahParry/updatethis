@@ -1,13 +1,12 @@
 [package]
 name = "updatethis"
-version = "0.1.5"
+version = "1.0.0"
 edition = "2024"
 description = "A tiny CLI to programmatically update the version of an R package"
 repository = "https://github.com/JosiahParry/updatethis"
 license = "MIT"
 publish = false
 
-# `publish = false` otherwise hides this binary from cargo-dist.
 [package.metadata.dist]
 dist = true
 
