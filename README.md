@@ -125,32 +125,6 @@ git push --tags
     Options:
       -h, --help  Print help
 
-### Print the current version
-
-    Print the current version of a package
-
-    Usage: updatethis current [PATH]
-
-    Arguments:
-      [PATH]  Path to the package root (defaults to the current directory)
-
-    Options:
-      -h, --help  Print help
-
-### Set a specific version
-
-    Set the Version field to a specific version
-
-    Usage: updatethis set-version [OPTIONS] <VERSION> [PATH]
-
-    Arguments:
-      <VERSION>  The version to set, as `x.y.z` or `x.y.z.w`
-      [PATH]     Path to the package root (defaults to the current directory)
-
-    Options:
-      -f, --force  Set the version even if it is not greater than the current one
-      -h, --help   Print help
-
 The new version must be greater than the current one unless you pass
 `--force`.
 

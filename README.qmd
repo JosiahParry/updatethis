@@ -110,22 +110,6 @@ cat(system("updatethis --help", intern = TRUE), sep = "\n")
 cat(system("updatethis version --help", intern = TRUE), sep = "\n")
 ```
 
-### Print the current version
-
-```{r}
-#| echo: false
-#| comment: ""
-cat(system("updatethis current --help", intern = TRUE), sep = "\n")
-```
-
-### Set a specific version
-
-```{r}
-#| echo: false
-#| comment: ""
-cat(system("updatethis set-version --help", intern = TRUE), sep = "\n")
-```
-
 The new version must be greater than the current one unless you pass `--force`.
 
 _________

@@ -289,7 +289,10 @@ mod tests {
                 .expect("bumps"),
             Version::DEFAULT
         );
-        assert_eq!(description.version().expect("valid"), Some(Version::DEFAULT));
+        assert_eq!(
+            description.version().expect("valid"),
+            Some(Version::DEFAULT)
+        );
     }
 
     #[test]
