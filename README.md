@@ -51,7 +51,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: JosiahParry/updatethis@v1
 ```
 
