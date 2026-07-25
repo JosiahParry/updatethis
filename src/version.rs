@@ -62,6 +62,7 @@ impl Version {
     };
 
     /// A released version, with no dev component.
+    #[cfg(test)]
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
         Self {
             major,

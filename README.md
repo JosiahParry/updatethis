@@ -10,9 +10,10 @@ A tiny CLI to programmatically update the version of an R package.
     Usage: updatethis <COMMAND>
 
     Commands:
-      version  Increment the Version field of a package's DESCRIPTION file
-      current  Print the current version of a package
-      help     Print this message or the help of the given subcommand(s)
+      version      Increment the Version field of a package's DESCRIPTION file
+      current      Print the current version of a package
+      set-version  Set the Version field to a specific version
+      help         Print this message or the help of the given subcommand(s)
 
     Options:
       -h, --help     Print help

@@ -5,6 +5,7 @@ install:
     cargo install --path .
 
 readme:
+    just install
     quarto render README.qmd --to gfm
 
 bump:
@@ -16,6 +17,6 @@ bump:
     fi
     just readme
     cargo release version $version --execute
-    git add Cargo.toml
+    git add Cargo.toml README.md
     git sv tag
     git push && git push --tags
