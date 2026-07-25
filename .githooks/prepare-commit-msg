@@ -5,7 +5,7 @@
 # Enable with:
 #     git config core.hooksPath .githooks
 
-if ! git sv --help >/dev/null 2>&1; then
+if ! command -v git-sv >/dev/null 2>&1; then
     cat >&2 <<'EOF'
 git-sv not found.
 
@@ -16,4 +16,9 @@ EOF
     exit 1
 fi
 
-git sv validate-commit-message --path "$(git rev-parse --show-toplevel)" --file "$1" --source "$2"
+# --log-level error suppresses the "could not find issue id" warning that
+# git-sv emits for branches without a ticket ID in the name.
+git sv --log-level error validate-commit-message \
+    --path "$(git rev-parse --show-toplevel)" \
+    --file "$1" \
+    --source "$2"
