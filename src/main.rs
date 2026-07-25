@@ -8,8 +8,10 @@ use std::{
 };
 
 mod version;
+mod workflow;
 
 use version::{Version, VersionType};
+use workflow::Workflow;
 
 #[derive(Parser)]
 #[command(
@@ -45,6 +47,14 @@ enum Command {
         /// Path to the package root (defaults to the current directory)
         path: Option<PathBuf>,
         /// Set the version even if it is not greater than the current one
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Write a GitHub Actions workflow that sets the version from git tags
+    Init {
+        /// Path to the repository root (defaults to the current directory)
+        path: Option<PathBuf>,
+        /// Overwrite an existing workflow
         #[arg(short, long)]
         force: bool,
     },
@@ -225,6 +235,21 @@ fn main() -> anyhow::Result<()> {
                 "{} {}",
                 "Wrote".dimmed(),
                 path.display().to_string().dimmed()
+            );
+        }
+        Command::Init { path, force } => {
+            let root = path.unwrap_or_else(|| PathBuf::from("."));
+
+            let path = Workflow::write(&root, force)?;
+
+            println!(
+                "{} {}",
+                "Wrote".bold(),
+                path.display().to_string().green().bold()
+            );
+            println!(
+                "{}",
+                "Tag a release to set the version, e.g. `git sv tag`".dimmed()
             );
         }
     }

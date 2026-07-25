@@ -23,6 +23,78 @@ Or build from source:
 cargo install --git https://github.com/JosiahParry/updatethis
 ```
 
+## GitHub Actions
+
+`updatethis` is designed to be used in a CI workflow so that version
+management is easy.
+
+To create the GitHub action:
+
+``` sh
+updatethis init
+```
+
+That creates `.github/workflows/set-version.yml`:
+
+``` yaml
+name: set-version
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*.*"
+
+jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JosiahParry/updatethis@v1
+```
+
+Create a tag for the version:
+
+``` sh
+git tag v0.2.0
+git push --tags
+```
+
+The version must be `vMaj.Min.Patch{.dev}`.
+
+> [!NOTE]
+>
+> Semantic versioning pre-release and build metadata are not supported.
+> This is to adhere with the status quo set by CRAN.
+
+The version from the tag is then written to the `DESCRIPTION` and
+committed.
+
+### Using Conventional Commits
+
+It is recommended to use [conventional
+commits](https://www.conventionalcommits.org) and
+[git-sv](https://github.com/thegeeklab/git-sv) to set the version.
+
+``` sh
+git sv tag
+git push --tags
+```
+
+### Action inputs
+
+| Input | Default | Description |
+|----|----|----|
+| `version` | the tag that triggered the run | Version to set |
+| `path` | `.` | Package root holding `DESCRIPTION` |
+| `force` | `false` | Set the version even if it is not greater |
+| `commit` | `true` | Commit the updated `DESCRIPTION` |
+| `push` | `true` | Push the commit |
+| `branch` | the default branch | Branch to push to |
+| `commit-message` | `chore: set version to {{version}}` | Commit message |
+
 ## Usage
 
     Bump the version of an R package
@@ -33,6 +105,7 @@ cargo install --git https://github.com/JosiahParry/updatethis
       version      Increment the Version field of a package's DESCRIPTION file
       current      Print the current version of a package
       set-version  Set the Version field to a specific version
+      init         Write a GitHub Actions workflow that sets the version from git tags
       help         Print this message or the help of the given subcommand(s)
 
     Options:
@@ -51,5 +124,36 @@ cargo install --git https://github.com/JosiahParry/updatethis
 
     Options:
       -h, --help  Print help
+
+### Print the current version
+
+    Print the current version of a package
+
+    Usage: updatethis current [PATH]
+
+    Arguments:
+      [PATH]  Path to the package root (defaults to the current directory)
+
+    Options:
+      -h, --help  Print help
+
+### Set a specific version
+
+    Set the Version field to a specific version
+
+    Usage: updatethis set-version [OPTIONS] <VERSION> [PATH]
+
+    Arguments:
+      <VERSION>  The version to set, as `x.y.z` or `x.y.z.w`
+      [PATH]     Path to the package root (defaults to the current directory)
+
+    Options:
+      -f, --force  Set the version even if it is not greater than the current one
+      -h, --help   Print help
+
+The new version must be greater than the current one unless you pass
+`--force`.
+
+------------------------------------------------------------------------
 
 Made with 🤍 from the `ricochet` 🐇 team
