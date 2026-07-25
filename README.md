@@ -5,8 +5,22 @@ A tiny CLI to programmatically update the version of an R package.
 
 ## Installation
 
+Install the latest prebuilt binary:
+
 ``` sh
-cargo install --git https://github.com/JosiahParry/updatethis --tag v0.1.0
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/JosiahParry/updatethis/releases/latest/download/updatethis-installer.sh | sh
+```
+
+On Windows:
+
+``` powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/JosiahParry/updatethis/releases/latest/download/updatethis-installer.ps1 | iex"
+```
+
+Or build from source:
+
+``` sh
+cargo install --git https://github.com/JosiahParry/updatethis
 ```
 
 ## Usage
