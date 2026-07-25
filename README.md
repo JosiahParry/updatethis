@@ -3,6 +3,12 @@
 
 A tiny CLI to programmatically update the version of an R package.
 
+## Installation
+
+``` sh
+cargo install --git https://github.com/JosiahParry/updatethis --tag v0.1.0
+```
+
 ## Usage
 
     Bump the version of an R package

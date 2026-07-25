@@ -1,0 +1,7 @@
+tag:
+  # dist and the release workflow expect a leading `v`.
+  pattern: "v%d.%d.%d"
+
+branches:
+  # This project does not track issues in branch names.
+  disable-issue: true
